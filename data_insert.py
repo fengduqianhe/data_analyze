@@ -1,24 +1,25 @@
-'''å®šæ—¶åŒæ­¥æ•°æ®'''
+'''¶¨Ê±Í¬²½Êı¾İ'''
 from threading import Timer
 import time
 import pymysql
 import datetime
 import uuid
+import math
 
-'''è·å–ç›‘æµ‹ç‚¹çš„ä¿¡æ¯'''
-# æ‰“å¼€æ•°æ®åº“è¿æ¥
+'''»ñÈ¡¼à²âµãµÄĞÅÏ¢'''
+# ´ò¿ªÊı¾İ¿âÁ¬½Ó
 db = pymysql.connect("localhost", "root", "123456", "geologicmessage")
-# ä½¿ç”¨ cursor() æ–¹æ³•åˆ›å»ºä¸€ä¸ªæ¸¸æ ‡å¯¹è±¡ cursor
+# Ê¹ÓÃ cursor() ·½·¨´´½¨Ò»¸öÓÎ±ê¶ÔÏó cursor
 cursor = db.cursor()
-point_list = []  # ç›‘æµ‹ç‚¹ç¼–å·
+point_list = []  # ¼à²âµã±àºÅ
 
 
-'''æŸ¥è¯¢æ‰€æœ‰çš„ç›‘æµ‹ç‚¹ç¼–å·'''
+'''²éÑ¯ËùÓĞµÄ¼à²âµã±àºÅ'''
 sql = "select id from `point_message` ;"
 try:
-    # æ‰§è¡ŒSQLè¯­å¥
+    # Ö´ĞĞSQLÓï¾ä
     cursor.execute(sql)
-    # è·å–æ‰€æœ‰è®°å½•åˆ—è¡¨
+    # »ñÈ¡ËùÓĞ¼ÇÂ¼ÁĞ±í
     point_results = cursor.fetchall()
     if len(point_results) > 0:
         for point_row in point_results:
@@ -26,48 +27,48 @@ try:
 except:
     print("Error: unable to fetch data")
 
-'''å¤šå‚æ•°å±æ€§'''
-double_device_type_list = ['humidity', 'tilt', 'wind']  # ä¸¤å‚æ•°ç±»å‹
-third_device_type_list = ['clinometer']  # ä¸‰å‚æ•°ç±»å‹
-mul_device_type_list = ['gps']  # å¤šå‚æ•°ç±»å‹
+'''¶à²ÎÊıÊôĞÔ'''
+double_device_type_list = ['humidity', 'tilt', 'wind']  # Á½²ÎÊıÀàĞÍ
+third_device_type_list = ['clinometer']  # Èı²ÎÊıÀàĞÍ
+mul_device_type_list = ['gps']  # ¶à²ÎÊıÀàĞÍ
 
 
-'''æ‹¼æ¥æŸ¥è¯¢è¯­å¥'''
-'''numå‚æ•°ä¸ªæ•° 1,2,3,9'''
-'''point ç›‘æµ‹ç‚¹ç¼–å·'''
-'''dp è®¾å¤‡ç±»å‹'''
-'''time_tamp æ—¶é—´æˆ³'''
+'''Æ´½Ó²éÑ¯Óï¾ä'''
+'''num²ÎÊı¸öÊı 1,2,3,9'''
+'''point ¼à²âµã±àºÅ'''
+'''dp Éè±¸ÀàĞÍ'''
+'''time_tamp Ê±¼ä´Á'''
 def connect_sql_para(num,point,dp,time_tamp):
 
-    para = ""  #æŸ¥è¯¢å‚æ•°
+    para = ""  #²éÑ¯²ÎÊı
     month=str(datetime.datetime.now().month) if datetime.datetime.now().month > 10 else "0" + str(datetime.datetime.now().month)
     device_data_name = "device_data_" + dp+"_"+ str(datetime.datetime.now().year) + month
     for _p in range(num):
         para = para+"para"+str(_p+1)+","
     para = para[:-1]
 
-    '''æŸ¥å‡ºæœ€æ–°çš„è®°å½•'''
+    '''²é³ö×îĞÂµÄ¼ÇÂ¼'''
     #return "SELECT "+para +" FROM "+device_data_name+" WHERE coltime ="+"(SELECT max(coltime) FROM "+device_data_name+" WHERE monitoring_area = '%s')"% point+"AND monitoring_area = '%s'"% point
 
-    '''æŒ‰å½“å‰æ—¶é—´ è·ç¦»å½“å‰æ—¶é—´æœ€è¿‘'''
+    '''°´µ±Ç°Ê±¼ä ¾àÀëµ±Ç°Ê±¼ä×î½ü'''
     #return "SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT max(coltime) FROM " + device_data_name + " WHERE unix_timestamp(NOW())>unix_timestamp(coltime) AND monitoring_area = '%s')" % point + "AND monitoring_area = '%s'" % point
 
-    '''æŒ‰æŒ‡å®šæ—¶é—´æˆ³ è·ç¦»æ—¶é—´æˆ³æœ€è¿‘'''
+    '''°´Ö¸¶¨Ê±¼ä´Á ¾àÀëÊ±¼ä´Á×î½ü'''
     return "SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT min(coltime) FROM " + device_data_name + " WHERE '%s'<unix_timestamp(coltime) AND monitoring_area = '%s')" % (str(time_tamp),point) + "AND monitoring_area = '%s'" % point
 
 
-'''æ•°æ®æ’å…¥'''
-'''time_tamp æ—¶é—´æˆ³'''
+'''Êı¾İ²åÈë'''
+'''time_tamp Ê±¼ä´Á'''
 def insert_data(time_tamp):
 
-    '''æ ¹æ®ç›‘æµ‹ç‚¹ æŸ¥æ‰¾è¯¥ç›‘æµ‹ç‚¹æ‰€æ‹¥æœ‰çš„è®¾å¤‡'''
+    '''¸ù¾İ¼à²âµã ²éÕÒ¸Ã¼à²âµãËùÓµÓĞµÄÉè±¸'''
     for _point in point_list:
         sql = "select device_type from `device` WHERE monitoring_area='%s'" % _point
-        point_device_list = [] #ç›‘æµ‹ç‚¹å¯¹åº”è®¾å¤‡ç±»å‹
+        point_device_list = [] # ¼à²âµã¶ÔÓ¦Éè±¸ÀàĞÍ
         try:
-            # æ‰§è¡ŒSQLè¯­å¥
+            # Ö´ĞĞSQLÓï¾ä
             cursor.execute(sql)
-            # è·å–æ‰€æœ‰è®°å½•åˆ—è¡¨
+            # »ñÈ¡ËùÓĞ¼ÇÂ¼ÁĞ±í
             point_device_type_results = cursor.fetchall()
             for point_device_type_row in point_device_type_results:
                 for _type in point_device_type_row[0].split(","):
@@ -77,19 +78,29 @@ def insert_data(time_tamp):
             print("Error: unable to fetch data")
         print(point_device_list)
 
-        device_data_dict = {} #ç›‘æµ‹ç‚¹å¯¹åº”å„è®¾å¤‡æ•°æ®
-        '''æ ¹æ®ç›‘æµ‹ç‚¹å¯¹åº”çš„è®¾å¤‡ å¯»æ‰¾æœ€æ–°çš„è®¾å¤‡æ•°æ®'''
+        device_data_dict = {} # ¼à²âµã¶ÔÓ¦¸÷Éè±¸Êı¾İ
+        '''¸ù¾İ¼à²âµã¶ÔÓ¦µÄÉè±¸ Ñ°ÕÒ×îĞÂµÄÉè±¸Êı¾İ'''
         try:
             for dp in point_device_list:
-                if dp in double_device_type_list:          #åˆ¤æ–­ä¸ºä¸¤å‚æ•°ç±»å‹
+
+
+                if dp in double_device_type_list:          # ÅĞ¶ÏÎªÁ½²ÎÊıÀàĞÍ
                     print(connect_sql_para(2, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(2, _point, dp, time_tamp))
                     double_type_results = cursor.fetchall()
                     if len(double_type_results) > 0:
-                        print((double_type_results[0][0]+double_type_results[0][1])/2)
                         device_data_dict.setdefault(dp, (double_type_results[0][0]+double_type_results[0][1])/2)
+                        # max_tilt:×î´óµÄºÏÉî¶ÈÎ»ÒÆ
+                        '''
+                        max_tilt = math.sqrt(double_type_results[0][0]*double_type_results[0][0]+double_type_results[0][1]*double_type_results[0][1])
+                        for i in range(1,3):
+                            if max_tilt < math.sqrt(double_type_results[0][i]*double_type_results[0][i]):
+                                max_tilt = math.sqrt(double_type_results[0][i]*double_type_results[0][i])
+                        print(max_tilt)
+                        device_data_dict.setdefault(dp, max_tilt)
+                        '''
 
-                elif dp in third_device_type_list:          #åˆ¤æ–­ä¸ºä¸‰å‚æ•°ç±»å‹
+                elif dp in third_device_type_list:          # ÅĞ¶ÏÎªÈı²ÎÊıÀàĞÍ
                    # print(connect_sql_para(3, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(3, _point, dp, time_tamp))
                     third_type_results = cursor.fetchall()
@@ -105,7 +116,7 @@ def insert_data(time_tamp):
                             mul_sum += mul_type_results[0][mul_i]
                         device_data_dict.setdefault(dp, mul_sum/9)
 
-                else:                                       #åˆ¤æ–­ä¸ºå•å‚æ•°ç±»å‹
+                else:                                       # ÅĞ¶ÏÎªµ¥²ÎÊıÀàĞÍ
                     #print(connect_sql_para(1, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(1, _point, dp, time_tamp))
                     signal_type_results = cursor.fetchall()
@@ -114,16 +125,18 @@ def insert_data(time_tamp):
         except:
             print("Error: unable to fetch data")
 
-        '''ç›‘æµ‹ç‚¹--è®¾å¤‡æ’å…¥å†å²è¡¨'''
-        uu_id = str(uuid.uuid1())    #äº§ç”Ÿuuid
-        insert_name_sql = "INSERT INTO device_history_data(id,monitoring_area,result) VALUES ('%s','%s','%s')" % (uu_id,_point, '0')
+        '''¼à²âµã--Éè±¸²åÈëÀúÊ·±í'''
+        uu_id = str(uuid.uuid1())    # ²úÉúuuid
+        insert_name_sql = "INSERT INTO device_history_data(id,monitoring_area,result,coltime) VALUES ('%s','%s','%s',FROM_UNIXTIME(%s))" % (uu_id,_point, '0',time_tamp)
+
+        # print(insert_name_sql)
         try:
             cursor.execute(insert_name_sql)
             db.commit()
         except:
-            db.rollback() # å‘ç”Ÿé”™è¯¯æ—¶å›æ»š
+            db.rollback() # ·¢Éú´íÎóÊ±»Ø¹ö
 
-            '''è®¾å¤‡æ•°æ®å…¥è¡¨'''
+            '''Éè±¸Êı¾İÈë±í'''
         for key, value in device_data_dict.items():
             update_data_sql = "UPDATE device_history_data SET " + key + " ='%s' WHERE monitoring_area='%s'AND id='%s'" % (value, _point, uu_id)
             print(update_data_sql)
@@ -131,15 +144,21 @@ def insert_data(time_tamp):
                 cursor.execute(update_data_sql)
                 db.commit()
             except:
-                db.rollback() # å‘ç”Ÿé”™è¯¯æ—¶å›æ»š
+                db.rollback() # ·¢Éú´íÎóÊ±»Ø¹ö
+
+        # ÖØĞÂÉèÖÃÊ±¼ä
+        # "UPDATE device_history_data SET coltime = VALUES(FROM_UNIXTIME(time_tamp))"
     return
 
 
-'''æ›´æ–°æ—¶é—´æˆ³æ›´æ”¹å½“å‰æ—¶é—´å¾ªç¯è°ƒç”¨'''
+'''¸üĞÂÊ±¼ä´Á¸ü¸Äµ±Ç°Ê±¼äÑ­»·µ÷ÓÃ'''
 time_tamp = 1512057600
-while (time_tamp < 1514476800):
+while (time_tamp < 1514649600):
     insert_data(time_tamp)
-    time_tamp+=64800
+    # ÖØĞÂÉèÖÃÊ±¼ä
+    # "ALTER TABLE device_history_data DROP COLUMN rainfall, humidity, wind"
+    "UPDATE device_history_data SET coltime = VALUES(FROM_UNIXTIME(time_tamp))"
+    time_tamp+=86400
 
 
 
