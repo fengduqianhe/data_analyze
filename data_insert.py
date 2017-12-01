@@ -6,6 +6,7 @@ import datetime
 import uuid
 import math
 
+
 '''获取监测点的信息'''
 # 打开数据库连接
 db = pymysql.connect("localhost", "root", "123456", "geologicmessage")
@@ -52,8 +53,37 @@ def connect_sql_para(num,point,dp,time_tamp):
     '''按当前时间 距离当前时间最近'''
     #return "SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT max(coltime) FROM " + device_data_name + " WHERE unix_timestamp(NOW())>unix_timestamp(coltime) AND monitoring_area = '%s')" % point + "AND monitoring_area = '%s'" % point
 
+    print("SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT min(coltime) FROM " + device_data_name + " WHERE '%s'<unix_timestamp(coltime) AND monitoring_area = '%s')" % (str(time_tamp),point) + "AND monitoring_area = '%s'" % point)
     '''按指定时间戳 距离时间戳最近'''
     return "SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT min(coltime) FROM " + device_data_name + " WHERE '%s'<unix_timestamp(coltime) AND monitoring_area = '%s')" % (str(time_tamp),point) + "AND monitoring_area = '%s'" % point
+
+def calc_result(num,point,dp,time_tamp,passgeway):
+    para = ""  # 查询参数
+    month = str(datetime.datetime.now().month) if datetime.datetime.now().month > 10 else "0" + str(
+        datetime.datetime.now().month)
+    device_data_name = "device_data_" + dp + "_" + str(datetime.datetime.now().year) + month
+    for _p in range(num):
+        para = para + "para" + str(_p + 1) + ","
+    para = para[:-1]
+    calc_data_sql = "SELECT " + para + ",passageway ,coltime  FROM " + device_data_name + " WHERE unix_timestamp(coltime)>"+str(time_tamp)+" AND monitoring_area = '%s'" % point + "ORDER BY coltime DESC LIMIT "+str(passgeway*2)#查询距当前时间最近的两组数据
+   # print(calc_data_sql)
+    cursor.execute(calc_data_sql)
+    data_results = cursor.fetchall()
+    data_results_list = [0]*passgeway   #初始化result数组
+    data_results_flag = [0]*passgeway   #初始化flag标签数组
+    second = time.mktime(data_results[0][3].timetuple())-time.mktime(data_results[passgeway][3].timetuple())#两组数据的时间间隔
+    for data_results_row in data_results:
+        if data_results_flag[int(data_results_row[2])] == 0:
+            #print(math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))
+            data_results_list[int(data_results_row[2])] = math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2)#求合位移
+            data_results_flag[int(data_results_row[2])] = 1
+        else:
+            data_results_list[int(data_results_row[2])] = (data_results_list[int(data_results_row[2])]-math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))/second   #求变化率
+            #print(data_results_list[int(data_results_row[2])])
+           # print(math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))
+   # print(second)
+   # print(max(data_results_list))
+    return max(data_results_list)
 
 
 '''数据插入'''
@@ -85,7 +115,11 @@ def insert_data(time_tamp):
                     print(connect_sql_para(2, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(2, _point, dp, time_tamp))
                     double_type_results = cursor.fetchall()
+                    '''判断是否为多通道'''
+                    '''单通道'''
                     if len(double_type_results) > 0:
+                        calc_result(2, _point, dp, time_tamp,len(double_type_results))
+                    else:
                         max_tilt = math.sqrt(
                             double_type_results[0][0] * double_type_results[0][0] + double_type_results[0][1] *
                             double_type_results[0][1])
