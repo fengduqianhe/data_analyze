@@ -1,211 +1,218 @@
-'''¶¨Ê±Í¬²½Êı¾İ'''
-from threading import Timer
+'''å®šæ—¶åŒæ­¥æ•°æ®'''
 import time
 import pymysql
 import datetime
 import uuid
 import math
+import json
 
-
-'''»ñÈ¡¼à²âµãµÄĞÅÏ¢'''
-# ´ò¿ªÊı¾İ¿âÁ¬½Ó
+'''è·å–ç›‘æµ‹ç‚¹çš„ä¿¡æ¯'''
+# æ‰“å¼€æ•°æ®åº“è¿æ¥
 db = pymysql.connect("localhost", "root", "123456", "geologicmessage")
-# Ê¹ÓÃ cursor() ·½·¨´´½¨Ò»¸öÓÎ±ê¶ÔÏó cursor
+# ä½¿ç”¨ cursor() æ–¹æ³•åˆ›å»ºä¸€ä¸ªæ¸¸æ ‡å¯¹è±¡ cursor
 cursor = db.cursor()
-point_list = []  # ¼à²âµã±àºÅ
+point_list = []  # ç›‘æµ‹ç‚¹ç¼–å·
 
 
-'''²éÑ¯ËùÓĞµÄ¼à²âµã±àºÅ'''
-sql = "select id from `point_message` ;"
-try:
-    # Ö´ĞĞSQLÓï¾ä
-    cursor.execute(sql)
-    # »ñÈ¡ËùÓĞ¼ÇÂ¼ÁĞ±í
-    point_results = cursor.fetchall()
-    if len(point_results) > 0:
-        for point_row in point_results:
-            point_list.append(point_row[0])
-except:
-    print("Error: unable to fetch data")
+'''æŸ¥è¯¢æ‰€æœ‰çš„ç›‘æµ‹ç‚¹ç¼–å·'''
+def get_point_list():
+    sql = "select id from `point_message` ;"
+    try:
+        # æ‰§è¡ŒSQLè¯­å¥
+        cursor.execute(sql)
+        # è·å–æ‰€æœ‰è®°å½•åˆ—è¡¨
+        point_results = cursor.fetchall()
+        if len(point_results) > 0:
+            for point_row in point_results:
+                point_list.append(point_row[0])
+    except:
+        print("Error: unable to fetch data")
+    return point_list
 
-'''¶à²ÎÊıÊôĞÔ'''
-double_device_type_list = ['tilt', 'wind']  # Á½²ÎÊıÀàĞÍ
-third_device_type_list = ['clinometer']  # Èı²ÎÊıÀàĞÍ
-mul_device_type_list = ['gps']  # ¶à²ÎÊıÀàĞÍ
-not_use_type_list = ['humidity', 'wind']
+def get_point_device_list(_point):
+    device_type_sql = "select device_type from `device` WHERE monitoring_area='%s'" % _point
+    point_device_list = []  # ç›‘æµ‹ç‚¹å¯¹åº”è®¾å¤‡ç±»å‹
+    try:
+        # æ‰§è¡ŒSQLè¯­å¥
+        cursor.execute(device_type_sql)
+        # è·å–æ‰€æœ‰è®°å½•åˆ—è¡¨
+        point_device_type_results = cursor.fetchall()
+        for point_device_type_row in point_device_type_results:
+            for _type in point_device_type_row[0].split(","):
+                if _type not in point_device_list and _type not in not_use_type_list:
+                    point_device_list.append(_type)
+    # print(point_device_list)
+    except:
+        print("Error: unable to fetch data")
+    return point_device_list
 
-'''Æ´½Ó²éÑ¯Óï¾ä'''
-'''num²ÎÊı¸öÊı 1,2,3,9'''
-'''point ¼à²âµã±àºÅ'''
-'''dp Éè±¸ÀàĞÍ'''
-'''time_tamp Ê±¼ä´Á'''
-def connect_sql_para(num,point,dp,time_tamp):
-    para = ""  #²éÑ¯²ÎÊı
-    month=str(datetime.datetime.now().month) if datetime.datetime.now().month > 10 else "0" + str(datetime.datetime.now().month)
-    device_data_name = "device_data_" + dp+"_"+ str(datetime.datetime.now().year) + month
-    for _p in range(num):
-        para = para+"para"+str(_p+1)+","
-    para = para[:-1]
 
-    '''²é³ö×îĞÂµÄ¼ÇÂ¼'''
-    #return "SELECT "+para +" FROM "+device_data_name+" WHERE coltime ="+"(SELECT max(coltime) FROM "+device_data_name+" WHERE monitoring_area = '%s')"% point+"AND monitoring_area = '%s'"% point
+'''å¤šå‚æ•°å±æ€§'''
+double_device_type_list = ['tilt', 'wind']  # ä¸¤å‚æ•°ç±»å‹
+third_device_type_list = ['clinometer']  # ä¸‰å‚æ•°ç±»å‹
+mul_device_type_list = ['gps']  # å¤šå‚æ•°ç±»å‹
+not_use_type_list = ['humidity', 'wind']  #ä¸è€ƒè™‘çš„ç±»å‹
 
-    '''°´µ±Ç°Ê±¼ä ¾àÀëµ±Ç°Ê±¼ä×î½ü'''
-    #return "SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT max(coltime) FROM " + device_data_name + " WHERE unix_timestamp(NOW())>unix_timestamp(coltime) AND monitoring_area = '%s')" % point + "AND monitoring_area = '%s'" % point
 
-    print("SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT min(coltime) FROM " + device_data_name + " WHERE '%s'<unix_timestamp(coltime) AND monitoring_area = '%s')" % (str(time_tamp),point) + "AND monitoring_area = '%s'" % point)
-
-    '''°´Ö¸¶¨Ê±¼ä´Á ¾àÀëÊ±¼ä´Á×î½ü'''
-    return "SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT min(coltime) FROM " + device_data_name + " WHERE '%s'<unix_timestamp(coltime) AND monitoring_area = '%s')" % (str(time_tamp),point) + "AND monitoring_area = '%s'" % point
-
-'''¿¼ÂÇÍ¨µÀÊıºó¶Ô±ä»¯Á¿Çó³ö×î´óÖµ'''
-
-'''Æ´½Ó²éÑ¯Óï¾ä'''
-'''num²ÎÊı¸öÊı 1,2,3,9'''
-'''point ¼à²âµã±àºÅ'''
-'''dp Éè±¸ÀàĞÍ'''
-'''time_tamp Ê±¼ä´Á'''
-'''passgeway Í¨µÀÊı'''
-def calc_result(num,point,dp,time_tamp,passgeway):
-    para = ""  # ²éÑ¯²ÎÊı
+'''æ‹¼æ¥æŸ¥è¯¢è¯­å¥'''
+'''numå‚æ•°ä¸ªæ•° 1,2,3,9'''
+'''point ç›‘æµ‹ç‚¹ç¼–å·'''
+'''device_id è®¾å¤‡id'''
+'''dp è®¾å¤‡ç±»å‹'''
+'''time_tamp æ—¶é—´æˆ³'''
+'''passagewaySum é€šé“æ•°'''
+def calc_result(num, point, device_id, dp, time_tamp, passagewaySum):
+    para = ""  # æŸ¥è¯¢å‚æ•°
     month = str(datetime.datetime.now().month) if datetime.datetime.now().month > 10 else "0" + str(
         datetime.datetime.now().month)
     device_data_name = "device_data_" + dp + "_" + str(datetime.datetime.now().year) + month
     for _p in range(num):
         para = para + "para" + str(_p + 1) + ","
     para = para[:-1]
-    calc_data_sql = "SELECT " + para + ",passageway ,coltime  FROM " + device_data_name + " WHERE unix_timestamp(coltime)>"+str(time_tamp)+" AND monitoring_area = '%s'" % point + "ORDER BY coltime DESC LIMIT "+str(passgeway*2)#²éÑ¯¾àµ±Ç°Ê±¼ä×î½üµÄÁ½×éÊı¾İ
-   # print(calc_data_sql)
-    cursor.execute(calc_data_sql)
-    data_results = cursor.fetchall()
-    data_results_list = [0]*passgeway   #³õÊ¼»¯resultÊı×é
-    data_results_flag = [0]*passgeway   #³õÊ¼»¯flag±êÇ©Êı×é
-    if num==2:
-        second = time.mktime(data_results[0][3].timetuple()) - time.mktime(
-            data_results[passgeway][3].timetuple())  # Á½×éÊı¾İµÄÊ±¼ä¼ä¸ô
-        for data_results_row in data_results:
-            if data_results_flag[int(data_results_row[2])] == 0:
-                # print(math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))
-                # ¿¼ÂÇ¶à²ÎÊı
-                data_results_list[int(data_results_row[2])] = math.sqrt(data_results_row[0] ** 2) + (
-                data_results_row[1] ** 2)  # ÇóºÏÎ»ÒÆ
-                data_results_flag[int(data_results_row[2])] = 1
-            else:
-                data_results_list[int(data_results_row[2])] = (data_results_list[int(data_results_row[2])] - math.sqrt(
-                    data_results_row[0] ** 2) + (data_results_row[1] ** 2)) / second  # Çó±ä»¯ÂÊ
-        return max(data_results_list)
-    elif dp == 'gps':
-         second = time.mktime(data_results[0][10].timetuple()) - time.mktime(
-             data_results[passgeway][10].timetuple())  # Á½×éÊı¾İµÄÊ±¼ä¼ä¸ô
-         for data_results_row in data_results:
-             if data_results_flag[int(data_results_row[9])] == 0:
-                 # print(math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))
-                 # ¿¼ÂÇ¶à²ÎÊı
-                 data_results_list[int(data_results_row[9])] = math.sqrt((data_results_row[6] ** 2) + (
-                     data_results_row[7] ** 2)+ (data_results_row[8] ** 2)) # ÇóºÏÎ»ÒÆ
-                 data_results_flag[int(data_results_row[9])] = 1
-             else:
-                 data_results_list[int(data_results_row[2])] = (data_results_list[int(data_results_row[2])] - math.sqrt((data_results_row[6] ** 2) + (data_results_row[7] ** 2)+ (data_results_row[8] ** 2))) / second  # Çó±ä»¯ÂÊ
-         return max(data_results_list)
-    else:
-         print("qewq")
+    # print(device_id)
+    # print(passageway)
+    calc_data_sql = "SELECT " + para + ", coltime  FROM " + device_data_name + " WHERE unix_timestamp(coltime)<" + \
+                    str(time_tamp) +" AND monitoring_area = '%s'" % point + "AND device_id = '%s'" % device_id +\
+                    "AND passageway  = '%s'" % passagewaySum + "ORDER BY coltime DESC LIMIT 2"  # æŸ¥è¯¢è·å½“å‰æ—¶é—´æœ€è¿‘çš„ä¸¤ç»„æ•°æ®
+    # print(calc_data_sql)
+    return calc_data_sql
 
+# è®¡ç®—device_data_dictå­—å…¸
+def get_device_data_dict(_point):
+    sql = "select id,device_type,passageway_place from `device` WHERE monitoring_area='%s'" % _point
+    device_data_dict = {}  # ç›‘æµ‹ç‚¹å¯¹åº”å„è®¾å¤‡æ•°æ®
+    try:
+        # æ‰§è¡ŒSQLè¯­å¥
+        cursor.execute(sql)
+        # è·å–æ‰€æœ‰è®°å½•åˆ—è¡¨
+        point_device_id_results = cursor.fetchall()
+        for point_device_id_row in point_device_id_results:  # éå†è®¾å¤‡ è·å–è®¾å¤‡çš„å±æ€§  é€šé“
+            passageway_json = point_device_id_row[2]  # è®°å½•é€šé“jsonå€¼   è§£æ
+            '''è§£æpassageway_place çš„jsonæ•°æ®'''
+            passageway_data = json.loads(passageway_json)
 
+            '''éå†è¯¥è®¾å¤‡çš„è®¾å¤‡ç±»å‹  è·å–è¯¥è®¾å¤‡ç±»å‹çš„é€šé“æ•°'''
+            for _type in point_device_id_row[1].split(","):
+                '''è·å–åˆ°ç±»å‹ æŸ¥æ‰¾é€šé“'''
+                passageway_id_list = []  # è®°å½•é€šé“çš„ç»„åˆ
+                for passageway_num in range(len(passageway_data)):
+                    if passageway_data[passageway_num]['deviceType'] == _type:
+                        passageway_id_list.append(passageway_data[passageway_num]['id'])
 
+                if _type in double_device_type_list:  # åˆ¤æ–­ä¸ºä¸¤å‚æ•°ç±»å‹
+                    for passageway_row in passageway_id_list:
+                        cursor.execute(calc_result(2, _point, point_device_id_row[0], _type, time_tamp, passageway_row))
+                        double_type_results = cursor.fetchall()
+                        print(double_type_results)
+                        if len(double_type_results) == 2:
+                            double_result = (math.sqrt(double_type_results[0][0] ** 2 + double_type_results[0][1] ** 2) - math.sqrt(double_type_results[1][0] ** 2 + double_type_results[1][1] ** 2)) / ((time.mktime(double_type_results[0][2].timetuple()) - time.mktime(double_type_results[1][2].timetuple())) / 3600)
+                            # print(double_result)
+                            if _type not in device_data_dict.keys():
+                                device_data_dict[_type] = double_result
+                            if _type in device_data_dict.keys() and math.fabs(device_data_dict[_type]) < math.fabs(
+                                    double_result):
+                                device_data_dict[_type] = double_result
 
+                elif _type in third_device_type_list:  # åˆ¤æ–­ä¸ºä¸‰å‚æ•°ç±»å‹
+                    for passageway_row in passageway_id_list:
+                        cursor.execute(calc_result(3, _point, point_device_id_row[0], _type, time_tamp, passageway_row))
+                        third_type_results = cursor.fetchall()
+                        if len(third_type_results) == 2:
+                            print(third_type_results)
+                            third_result_list = []
+                            for number in range(3):
+                                third_result_list[number] = (third_type_results[0][number] - third_type_results[1][number]) / ((time.mktime(third_type_results[0][3].timetuple()) - time.mktime(third_type_results[1][3].timetuple())) / 3600)
+                            for max_third_result in third_result_list:
+                                device_data_dict[_type] = third_result_list[0]
+                                if math.fabs(device_data_dict[_type]) < math.fabs(max_third_result):
+                                    device_data_dict[_type] = max_third_result
 
-'''Êı¾İ²åÈë'''
-'''time_tamp Ê±¼ä´Á'''
+                elif _type in mul_device_type_list:  # åˆ¤æ–­ä¸ºå¤šå‚æ•°å±æ€§  GNSSåªè€ƒè™‘åä¸‰ä¸ªå‚æ•°
+                    for passageway_row in passageway_id_list:
+                        cursor.execute(calc_result(9, _point, point_device_id_row[0], _type, time_tamp, passageway_row))
+                        mul_type_results = cursor.fetchall()
+                        if len(mul_type_results) == 2:
+                            mul_result = (math.sqrt(mul_type_results[0][6] ** 2 + mul_type_results[0][7] ** 2 + mul_type_results[0][8] ** 2) - math.sqrt(mul_type_results[1][6] ** 2 + mul_type_results[1][7] ** 2 + mul_type_results[1][8] ** 2)) / ((time.mktime(mul_type_results[0][9].timetuple()) - time.mktime(mul_type_results[1][9].timetuple())) / 3600)
+                            if _type not in device_data_dict.keys():
+                                device_data_dict[_type] = mul_result
+                            if _type in device_data_dict.keys() and math.fabs(device_data_dict[_type]) < math.fabs(
+                                    mul_result):
+                                device_data_dict[_type] = mul_result
+                else:
+                    for passageway_row in passageway_id_list:
+                        print(passageway_row)
+                        cursor.execute(calc_result(1, _point, point_device_id_row[0], _type, time_tamp, passageway_row))
+                        single_type_results = cursor.fetchall()
+                        if len(single_type_results) == 2:
+                            single_result = (single_type_results[0][0] - single_type_results[1][0]) / ((time.mktime(single_type_results[0][1].timetuple()) - time.mktime(single_type_results[1][1].timetuple())) / 3600)
+                            # print(single_result)
+                            if _type not in device_data_dict.keys():
+                                device_data_dict[_type] = single_result
+                            if _type in device_data_dict.keys() and math.fabs(device_data_dict[_type]) < math.fabs(
+                                    single_result):
+                                device_data_dict[_type] = single_result
+
+    except:
+        print("Error: unable to fetch data")
+    return device_data_dict
+
+'''æ•°æ®æ’å…¥'''
+'''è€ƒè™‘é€šé“æ•°åå¯¹å˜åŒ–é‡æ±‚å‡ºæœ€å¤§å€¼'''
+'''æ ¹æ®ç›‘æµ‹ç‚¹ å¯»æ‰¾è®¾å¤‡ å¹¶è®°å½•è®¾å¤‡çš„id'''
+'''éå†è®¾å¤‡  è®°å½•è¯¥è®¾å¤‡æ‹¥æœ‰çš„è®¾å¤‡ç±»å‹ å¹¶è·å–é€šé“æ•° æ ¹æ®å¯¹åº”ç›‘æµ‹ç‚¹ID è®¾å¤‡id é€šé“æ•° è®¡ç®—å˜åŒ–ç‡ æ±‚å‡ºæœ€å¤§å€¼    '''
 def insert_data(time_tamp):
-
-    '''¸ù¾İ¼à²âµã ²éÕÒ¸Ã¼à²âµãËùÓµÓĞµÄÉè±¸'''
+    point_list = get_point_list()
     for _point in point_list:
-        sql = "select device_type from `device` WHERE monitoring_area='%s'" % _point
-        point_device_list = [] #¼à²âµã¶ÔÓ¦Éè±¸ÀàĞÍ
-        try:
-            # Ö´ĞĞSQLÓï¾ä
-            cursor.execute(sql)
-            # »ñÈ¡ËùÓĞ¼ÇÂ¼ÁĞ±í
-            point_device_type_results = cursor.fetchall()
-            for point_device_type_row in point_device_type_results:
-                for _type in point_device_type_row[0].split(","):
-                    if _type not in point_device_list and _type not in not_use_type_list:
-                        point_device_list.append(_type)
-        except:
-            print("Error: unable to fetch data")
-        print(point_device_list)
+        device_data_dict = get_device_data_dict(_point)
+        '''è·å–ç›‘æµ‹ç‚¹è®¾å¤‡åˆ—è¡¨'''
+        point_device_list = get_point_device_list(_point)
+        flag = 0  # æ ‡å¿—æ˜¯å¦æœ‰å¼‚å¸¸æ•°æ®
 
-        device_data_dict = {} #¼à²âµã¶ÔÓ¦¸÷Éè±¸Êı¾İ
-        '''¸ù¾İ¼à²âµã¶ÔÓ¦µÄÉè±¸ Ñ°ÕÒ×îĞÂµÄÉè±¸Êı¾İ'''
-        try:
-            for dp in point_device_list:
-                if dp in double_device_type_list:          #ÅĞ¶ÏÎªÁ½²ÎÊıÀàĞÍ
-                    #print(connect_sql_para(2, _point, dp, time_tamp))
-                    cursor.execute(connect_sql_para(2, _point, dp, time_tamp))
-                    double_type_results = cursor.fetchall()
-                    if len(double_type_results) > 0:
-                        device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
-                    else:
-                        device_data_dict.setdefault(dp,0)
-                elif dp in third_device_type_list:          #ÅĞ¶ÏÎªÈı²ÎÊıÀàĞÍ
-                   # print(connect_sql_para(3, _point, dp, time_tamp))
-                    cursor.execute(connect_sql_para(3, _point, dp, time_tamp))
-                    third_type_results = cursor.fetchall()
-                    if len(third_type_results) > 0:
-                        device_data_dict.setdefault(dp, calc_result(3, _point, dp, time_tamp, len(double_type_results)))
-                    else:
-                        device_data_dict.setdefault(dp, 0)
-                elif dp in mul_device_type_list:           #ÅĞ¶ÏÎª¶à²ÎÊıÊôĞÔ  GNSSÖ»¿¼ÂÇºóÈı¸ö²ÎÊı
-                    # print(connect_sql_para(9, _point, dp, time_tamp))
-                    cursor.execute(connect_sql_para(9, _point, dp, time_tamp))
-                    mul_type_results = cursor.fetchall()
-                    if len(mul_type_results) > 0:
-                        device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
-                    else:
-                        device_data_dict.setdefault(dp, 0)
-                else:                                       #ÅĞ¶ÏÎªµ¥²ÎÊıÀàĞÍ
-                    #print(connect_sql_para(1, _point, dp, time_tamp))
-                    cursor.execute(connect_sql_para(1, _point, dp, time_tamp))
-                    signal_type_results = cursor.fetchall()
-                    if len(signal_type_results) > 0:
-                        device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
-                    else:
-                        device_data_dict.setdefault(dp, 0)
-        except:
-            print("Error: unable to fetch data")
+        '''åˆ¤æ–­å­—å…¸ä¸­æ˜¯å¦æœ‰å€¼  æ˜¯å¦æœ‰å¼‚å¸¸å€¼  è‹¥æœ‰å¼‚å¸¸å€¼  ä¸è¿›è¡Œæ’å…¥æ“ä½œ  ç©ºå€¼ä»¥0è¡¥ç¼º'''
+        for point_device_row in point_device_list:
+            if point_device_row not in device_data_dict.keys():
+                device_data_dict[point_device_row] = 0
+            else:
+                if math.fabs(device_data_dict[point_device_row]) > 1:
+                    flag = 1
+                    break
 
-
-        '''¼à²âµã--Éè±¸²åÈëÀúÊ·±í'''
-        uu_id = str(uuid.uuid1())    #²úÉúuuid
-        insert_name_sql = "INSERT INTO device_history_data(id,monitoring_area,result) VALUES ('%s','%s','%s')" % (uu_id,_point, '0')
-        try:
-            cursor.execute(insert_name_sql)
-            db.commit()
-        except:
-            db.rollback() # ·¢Éú´íÎóÊ±»Ø¹ö
-
-            '''Éè±¸Êı¾İÈë±í'''
-        for key, value in device_data_dict.items():
-            update_data_sql = "UPDATE device_history_data SET " + key + " ='%s' WHERE monitoring_area='%s'AND id='%s'" %(value, _point, uu_id)
-            print(update_data_sql)
+        if flag == 0:
+            '''ç›‘æµ‹ç‚¹--è®¾å¤‡æ’å…¥å†å²è¡¨'''
+            uu_id = str(uuid.uuid1())  # äº§ç”Ÿuuid
+            insert_name_sql = "INSERT INTO device_history_data(id,monitoring_area,result) VALUES ('%s','%s','%s')" % (
+                uu_id, _point, '0')
             try:
-                cursor.execute(update_data_sql)
+                cursor.execute(insert_name_sql)
                 db.commit()
             except:
-                db.rollback() #·¢Éú´íÎóÊ±»Ø¹ö
-        '''ÖØĞÂÉèÖÃÊ±¼ä'''
-        update_time_sql = "UPDATE device_history_data SET coltime = FROM_UNIXTIME('%s') WHERE monitoring_area='%s' AND id='%s'" % (str(time_tamp), _point, uu_id)
-        print(update_time_sql)
-        try:
-            cursor.execute(update_time_sql)
-            db.commit()
-        except:
-            db.rollback()  # ·¢Éú´íÎóÊ±»Ø¹ö
-        return
+                db.rollback()  # å‘ç”Ÿé”™è¯¯æ—¶å›æ»š
 
-'''¸üĞÂÊ±¼ä´Á¸ü¸Äµ±Ç°Ê±¼äÑ­»·µ÷ÓÃ'''
-time_tamp = 1512057600
-while (time_tamp < 1514476800):
+                '''è®¾å¤‡æ•°æ®å…¥è¡¨'''
+            for key, value in device_data_dict.items():
+                update_data_sql = "UPDATE device_history_data SET " + key + " ='%s' WHERE monitoring_area='%s'AND id='%s'" % (
+                    value, _point, uu_id)
+                print(update_data_sql)
+                try:
+                    cursor.execute(update_data_sql)
+                    db.commit()
+                except:
+                    db.rollback()  # å‘ç”Ÿé”™è¯¯æ—¶å›æ»š
+            '''é‡æ–°è®¾ç½®æ—¶é—´'''
+            update_time_sql = "UPDATE device_history_data SET coltime = FROM_UNIXTIME('%s') WHERE monitoring_area='%s' AND id='%s'" % (
+                str(time_tamp), _point, uu_id)
+            print(update_time_sql)
+            try:
+                cursor.execute(update_time_sql)
+                db.commit()
+            except:
+                db.rollback()  # å‘ç”Ÿé”™è¯¯æ—¶å›æ»š
+    return
+
+
+'''æ›´æ–°æ—¶é—´æˆ³æ›´æ”¹å½“å‰æ—¶é—´å¾ªç¯è°ƒç”¨'''
+time_tamp = 1512136800
+while (time_tamp < 1514556801):
     insert_data(time_tamp)
     time_tamp+=64800
 
