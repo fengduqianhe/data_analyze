@@ -60,6 +60,12 @@ def connect_sql_para(num,point,dp,time_tamp):
 
 '''考虑通道数后对变化量求出最大值'''
 
+'''拼接查询语句'''
+'''num参数个数 1,2,3,9'''
+'''point 监测点编号'''
+'''dp 设备类型'''
+'''time_tamp 时间戳'''
+'''passgeway 通道数'''
 def calc_result(num,point,dp,time_tamp,passgeway):
     para = ""  # 查询参数
     month = str(datetime.datetime.now().month) if datetime.datetime.now().month > 10 else "0" + str(
@@ -79,7 +85,6 @@ def calc_result(num,point,dp,time_tamp,passgeway):
         if data_results_flag[int(data_results_row[2])] == 0:
             #print(math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))
             #考虑多参数
-
             data_results_list[int(data_results_row[2])] = math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2)#求合位移
             data_results_flag[int(data_results_row[2])] = 1
         else:
@@ -122,27 +127,32 @@ def insert_data(time_tamp):
                     double_type_results = cursor.fetchall()
                     if len(double_type_results) > 0:
                         device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
-
+                    else:
+                        device_data_dict.setdefault(dp,0)
                 elif dp in third_device_type_list:          #判断为三参数类型
                    # print(connect_sql_para(3, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(3, _point, dp, time_tamp))
                     third_type_results = cursor.fetchall()
                     if len(third_type_results) > 0:
-                        device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
-
+                        device_data_dict.setdefault(dp, calc_result(3, _point, dp, time_tamp, len(double_type_results)))
+                    else:
+                        device_data_dict.setdefault(dp, 0)
                 elif dp in mul_device_type_list:           #判断为多参数属性  GNSS只考虑后三个参数
                     # print(connect_sql_para(9, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(9, _point, dp, time_tamp))
                     mul_type_results = cursor.fetchall()
                     if len(mul_type_results) > 0:
                         device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
-
+                    else:
+                        device_data_dict.setdefault(dp, 0)
                 else:                                       #判断为单参数类型
                     #print(connect_sql_para(1, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(1, _point, dp, time_tamp))
                     signal_type_results = cursor.fetchall()
                     if len(signal_type_results) > 0:
                         device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
+                    else:
+                        device_data_dict.setdefault(dp, 0)
         except:
             print("Error: unable to fetch data")
 
