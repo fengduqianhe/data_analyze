@@ -80,20 +80,38 @@ def calc_result(num,point,dp,time_tamp,passgeway):
     data_results = cursor.fetchall()
     data_results_list = [0]*passgeway   #初始化result数组
     data_results_flag = [0]*passgeway   #初始化flag标签数组
-    second = time.mktime(data_results[0][3].timetuple())-time.mktime(data_results[passgeway][3].timetuple())#两组数据的时间间隔
-    for data_results_row in data_results:
-        if data_results_flag[int(data_results_row[2])] == 0:
-            #print(math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))
-            #考虑多参数
-            data_results_list[int(data_results_row[2])] = math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2)#求合位移
-            data_results_flag[int(data_results_row[2])] = 1
-        else:
-            data_results_list[int(data_results_row[2])] = (data_results_list[int(data_results_row[2])]-math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))/second   #求变化率
-            #print(data_results_list[int(data_results_row[2])])
-           # print(math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))
-   # print(second)
-   # print(max(data_results_list))
-    return max(data_results_list)
+     if num==2:
+        second = time.mktime(data_results[0][3].timetuple()) - time.mktime(
+            data_results[passgeway][3].timetuple())  # 两组数据的时间间隔
+        for data_results_row in data_results:
+            if data_results_flag[int(data_results_row[2])] == 0:
+                # print(math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))
+                # 考虑多参数
+                data_results_list[int(data_results_row[2])] = math.sqrt(data_results_row[0] ** 2) + (
+                data_results_row[1] ** 2)  # 求合位移
+                data_results_flag[int(data_results_row[2])] = 1
+            else:
+                data_results_list[int(data_results_row[2])] = (data_results_list[int(data_results_row[2])] - math.sqrt(
+                    data_results_row[0] ** 2) + (data_results_row[1] ** 2)) / second  # 求变化率
+                # print(data_results_list[int(data_results_row[2])])
+                # print(math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))
+                # print(second)
+                # print(max(data_results_list))
+        return max(data_results_list)
+     elif num==3:
+        second = time.mktime(data_results[0][4].timetuple()) - time.mktime(
+        data_results[passgeway][4].timetuple())  # 两组数据的时间间隔
+        for data_results_row in data_results:
+
+
+
+
+
+
+
+
+
+
 
 
 '''数据插入'''
