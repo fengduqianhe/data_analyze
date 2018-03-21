@@ -80,7 +80,7 @@ def calc_result(num,point,dp,time_tamp,passgeway):
     data_results = cursor.fetchall()
     data_results_list = [0]*passgeway   #初始化result数组
     data_results_flag = [0]*passgeway   #初始化flag标签数组
-     if num==2:
+    if num==2:
         second = time.mktime(data_results[0][3].timetuple()) - time.mktime(
             data_results[passgeway][3].timetuple())  # 两组数据的时间间隔
         for data_results_row in data_results:
@@ -94,7 +94,7 @@ def calc_result(num,point,dp,time_tamp,passgeway):
                 data_results_list[int(data_results_row[2])] = (data_results_list[int(data_results_row[2])] - math.sqrt(
                     data_results_row[0] ** 2) + (data_results_row[1] ** 2)) / second  # 求变化率
         return max(data_results_list)
-     elif dp=='gps':
+    elif dp == 'gps':
          second = time.mktime(data_results[0][10].timetuple()) - time.mktime(
              data_results[passgeway][10].timetuple())  # 两组数据的时间间隔
          for data_results_row in data_results:
@@ -105,20 +105,10 @@ def calc_result(num,point,dp,time_tamp,passgeway):
                      data_results_row[7] ** 2)+ (data_results_row[8] ** 2)) # 求合位移
                  data_results_flag[int(data_results_row[9])] = 1
              else:
-                 data_results_list[int(data_results_row[2])] = (data_results_list[int(data_results_row[2])] - math.sqrt((
-                     data_results_row[6] ** 2) + (data_results_row[7] ** 2)+ (data_results_row[8] ** 2))) / second  # 求变化率
+                 data_results_list[int(data_results_row[2])] = (data_results_list[int(data_results_row[2])] - math.sqrt((data_results_row[6] ** 2) + (data_results_row[7] ** 2)+ (data_results_row[8] ** 2))) / second  # 求变化率
          return max(data_results_list)
-     elif num==3:
-        second = time.mktime(data_results[0][4].timetuple()) - time.mktime(
-        data_results[passgeway][4].timetuple())  # 两组数据的时间间隔
-        for data_results_row in data_results:
-
-
-
-
-
-
-
+    else:
+         print("qewq")
 
 
 
