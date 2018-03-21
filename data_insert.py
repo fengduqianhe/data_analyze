@@ -54,8 +54,11 @@ def connect_sql_para(num,point,dp,time_tamp):
     #return "SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT max(coltime) FROM " + device_data_name + " WHERE unix_timestamp(NOW())>unix_timestamp(coltime) AND monitoring_area = '%s')" % point + "AND monitoring_area = '%s'" % point
 
     print("SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT min(coltime) FROM " + device_data_name + " WHERE '%s'<unix_timestamp(coltime) AND monitoring_area = '%s')" % (str(time_tamp),point) + "AND monitoring_area = '%s'" % point)
+
     '''按指定时间戳 距离时间戳最近'''
     return "SELECT " + para + " FROM " + device_data_name + " WHERE coltime =" + "(SELECT min(coltime) FROM " + device_data_name + " WHERE '%s'<unix_timestamp(coltime) AND monitoring_area = '%s')" % (str(time_tamp),point) + "AND monitoring_area = '%s'" % point
+
+'''考虑通道数后对变化量求出最大值'''
 
 def calc_result(num,point,dp,time_tamp,passgeway):
     para = ""  # 查询参数
@@ -75,6 +78,8 @@ def calc_result(num,point,dp,time_tamp,passgeway):
     for data_results_row in data_results:
         if data_results_flag[int(data_results_row[2])] == 0:
             #print(math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2))
+            #考虑多参数
+
             data_results_list[int(data_results_row[2])] = math.sqrt(data_results_row[0]**2)+(data_results_row[1]**2)#求合位移
             data_results_flag[int(data_results_row[2])] = 1
         else:
@@ -112,46 +117,35 @@ def insert_data(time_tamp):
         try:
             for dp in point_device_list:
                 if dp in double_device_type_list:          #判断为两参数类型
-                    print(connect_sql_para(2, _point, dp, time_tamp))
+                    #print(connect_sql_para(2, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(2, _point, dp, time_tamp))
                     double_type_results = cursor.fetchall()
-                    '''判断是否为多通道'''
-                    '''单通道'''
                     if len(double_type_results) > 0:
-                        calc_result(2, _point, dp, time_tamp,len(double_type_results))
-                    else:
-                        max_tilt = math.sqrt(
-                            double_type_results[0][0] * double_type_results[0][0] + double_type_results[0][1] *
-                            double_type_results[0][1])
-                        for i in range(1, 3):
-                            if max_tilt < math.sqrt(double_type_results[0][i] * double_type_results[0][i]):
-                                max_tilt = math.sqrt(double_type_results[0][i] * double_type_results[0][i])
-                        print(max_tilt)
-                        device_data_dict.setdefault(dp, max_tilt)
+                        device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
+
                 elif dp in third_device_type_list:          #判断为三参数类型
                    # print(connect_sql_para(3, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(3, _point, dp, time_tamp))
                     third_type_results = cursor.fetchall()
                     if len(third_type_results) > 0:
-                        device_data_dict.setdefault(dp,(third_type_results[0][0]+third_type_results[0][1]+third_type_results[0][2])/3)
-                elif dp in mul_device_type_list:
+                        device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
+
+                elif dp in mul_device_type_list:           #判断为多参数属性  GNSS只考虑后三个参数
                     # print(connect_sql_para(9, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(9, _point, dp, time_tamp))
                     mul_type_results = cursor.fetchall()
                     if len(mul_type_results) > 0:
-                        mul_sum = 0
-                        for mul_i in range(9):
-                            mul_sum += mul_type_results[0][mul_i]
-                        device_data_dict.setdefault(dp, mul_sum/9)
+                        device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
 
                 else:                                       #判断为单参数类型
                     #print(connect_sql_para(1, _point, dp, time_tamp))
                     cursor.execute(connect_sql_para(1, _point, dp, time_tamp))
                     signal_type_results = cursor.fetchall()
                     if len(signal_type_results) > 0:
-                        device_data_dict.setdefault(dp, signal_type_results[0][0])
+                        device_data_dict.setdefault(dp, calc_result(2, _point, dp, time_tamp, len(double_type_results)))
         except:
             print("Error: unable to fetch data")
+
 
         '''监测点--设备插入历史表'''
         uu_id = str(uuid.uuid1())    #产生uuid
@@ -170,7 +164,7 @@ def insert_data(time_tamp):
                 cursor.execute(update_data_sql)
                 db.commit()
             except:
-                db.rollback() # 发生错误时回滚
+                db.rollback() #发生错误时回滚
         '''重新设置时间'''
         update_time_sql = "UPDATE device_history_data SET coltime = FROM_UNIXTIME('%s') WHERE monitoring_area='%s' AND id='%s'" % (str(time_tamp), _point, uu_id)
         print(update_time_sql)
